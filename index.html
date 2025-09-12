@@ -4,18 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LaTeX Displayer</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" integrity="sha384-wcIxkf4k558fYv3mQP2ZKSjyNGrcHeKR5RxbQCutfMtyKiVBSK//bSng/14J4z5z" crossorigin="anonymous">
+    <!-- Removed KaTeX CSS; will use MathJax which renders via HTML/CSS dynamically -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <h1>LaTeX Displayer</h1>
-        <p>Paste your text with LaTeX and see it rendered.</p>
-        <textarea id="input" placeholder="Paste your content here..."></textarea>
+        <textarea id="input" placeholder="Paste your content here and click Render."></textarea>
+        <button id="render-btn">Render</button>
         <div id="output"></div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js" integrity="sha384-hIoBPJpTadBdeNdc_i6AI_b0Dk5MAxCzM0N3ALDBkH0YlFPLBIe8Hj9R8uDO8nFa" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+        <script>
+                // MathJax configuration (TeX + AMS, inline $...$ and \(...\), display $$...$$ and \[...\])
+                window.MathJax = {
+                    tex: { inlineMath: [['$','$'], ['\\(','\\)']], displayMath: [['$$','$$'], ['\\[','\\]']], processEscapes: true },
+                    options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] }
+                };
+        </script>
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="mathjax-script" async></script>
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it@13.0.1/dist/markdown-it.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

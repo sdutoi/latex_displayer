@@ -1,42 +1,89 @@
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM fully loaded.');
+
     const input = document.getElementById('input');
     const output = document.getElementById('output');
+    const renderBtn = document.getElementById('render-btn');
 
-    function renderContent() {
-        const text = input.value;
-        let html = marked.parse(text);
+    if (!input || !output || !renderBtn) {
+        console.error('Error: One or more HTML elements (input, output, or render-btn) were not found.');
+        return;
+    }
+    console.log('All required elements found.');
 
-        // A simple regex to find and replace LaTeX might be fragile.
-        // A better approach would be to use a library that integrates
-        // markdown and latex rendering, but for this simple case,
-        // we can try to replace it manually.
-
-        // Block-level LaTeX $$...$$
-        html = html.replace(/\$\$([\s\S]*?)\$\$/g, (match, latex) => {
-            try {
-                return katex.renderToString(latex, { displayMode: true, throwOnError: false });
-            } catch (e) {
-                return `<span class="katex-error">${e.message}</span>`;
-            }
-        });
-
-        // Inline-level LaTeX $...$
-        // This is a bit more tricky to not match regular dollar signs.
-        // This regex looks for $...$ that is not preceded or followed by a digit.
-        html = html.replace(/(^|\s)\$([^$]+?)\$($|\s)/g, (match, pre, latex, post) => {
-             try {
-                return pre + katex.renderToString(latex, { throwOnError: false }) + post;
-            } catch (e) {
-                return pre + `<span class="katex-error">${e.message}</span>` + post;
-            }
-        });
-
-
-        output.innerHTML = html;
+    let md;
+    try {
+        md = window.markdownit({ html: true, breaks: false }); // allow raw HTML
+        console.log('markdown-it initialized (without katex plugin).');
+    } catch (e) {
+        console.error('Failed to initialize markdown-it:', e);
+        output.innerHTML = '<p style="color: red;">Critical: markdown-it failed to load.</p>';
+        return;
     }
 
-    input.addEventListener('input', renderContent);
+    function renderContent() {
+        console.log('Render function called.');
+        try {
+            const raw = input.value;
+            // Manual math handling before markdown rendering.
+            // First render markdown (with placeholders to avoid interfering with markdown parsing)
+            const placeholders = [];
+            let temp = raw
+                .replace(/\$\$([\s\S]*?)\$\$/g, (m, expr) => {
+                    const i = placeholders.length;
+                    placeholders.push({expr, display:true});
+                    return `@@MATH_BLOCK_${i}@@`;
+                })
+                .replace(/\\\[([\s\S]*?)\\\]/g, (m, expr) => {
+                    const i = placeholders.length;
+                    placeholders.push({expr, display:true});
+                    return `@@MATH_BLOCK_${i}@@`;
+                })
+                .replace(/\\\((.+?)\\\)/g, (m, expr) => {
+                    const i = placeholders.length;
+                    placeholders.push({expr, display:false});
+                    return `@@MATH_INLINE_${i}@@`;
+                })
+                .replace(/\$(?!\$)([^\n$]+?)\$/g, (m, expr) => {
+                    const i = placeholders.length;
+                    placeholders.push({expr, display:false});
+                    return `@@MATH_INLINE_${i}@@`;
+                });
 
-    // Initial render in case there's content on load (e.g. from browser cache)
-    renderContent();
+            let html = md.render(temp);
+            // Replace placeholders with original TeX delimiters so MathJax can process them
+            html = html.replace(/@@MATH_BLOCK_(\d+)@@/g, (m, idxStr) => {
+                const ph = placeholders[Number(idxStr)];
+                return ph ? `$$${ph.expr}$$` : m;
+            }).replace(/@@MATH_INLINE_(\d+)@@/g, (m, idxStr) => {
+                const ph = placeholders[Number(idxStr)];
+                return ph ? `$${ph.expr}$` : m;
+            });
+
+            output.innerHTML = html;
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                window.MathJax.typesetPromise([output]).catch(err => console.error('MathJax typeset error', err));
+            }
+            console.log('Content rendered successfully.');
+        } catch (e) {
+            console.error('An error occurred during rendering:', e);
+            output.innerHTML = `<p style="color: red;">An error occurred during rendering. Check the console for details.</p>`;
+        }
+    }
+
+    renderBtn.addEventListener('click', () => {
+        console.log('Render button clicked.');
+        renderContent();
+    });
+
+    console.log('Click event listener added to the render button.');
+
+    // Keyboard shortcut: Cmd+Enter (mac) or Ctrl+Enter (others) to render
+    input.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+            e.preventDefault();
+            console.log('Shortcut render triggered');
+            renderContent();
+        }
+    });
 });
