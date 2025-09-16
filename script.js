@@ -11,6 +11,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     console.log('All required elements found.');
 
+    // Escape HTML special chars so inserted TeX doesn't break HTML parsing.
+    const htmlEscape = (s) => s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
     let md;
     try {
         md = window.markdownit({ html: true, breaks: false }); // allow raw HTML
@@ -51,18 +57,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
             let html = md.render(temp);
-            // Replace placeholders with original TeX delimiters so MathJax can process them
+            // Replace placeholders with original TeX delimiters (HTML-escaped) so MathJax can process them safely
             html = html.replace(/@@MATH_BLOCK_(\d+)@@/g, (m, idxStr) => {
                 const ph = placeholders[Number(idxStr)];
-                return ph ? `$$${ph.expr}$$` : m;
+                return ph ? `$$${htmlEscape(ph.expr)}$$` : m;
             }).replace(/@@MATH_INLINE_(\d+)@@/g, (m, idxStr) => {
                 const ph = placeholders[Number(idxStr)];
-                return ph ? `$${ph.expr}$` : m;
+                return ph ? `$${htmlEscape(ph.expr)}$` : m;
             });
 
             output.innerHTML = html;
-            if (window.MathJax && window.MathJax.typesetPromise) {
-                window.MathJax.typesetPromise([output]).catch(err => console.error('MathJax typeset error', err));
+            const runTypeset = () => window.MathJax && window.MathJax.typesetPromise
+                ? window.MathJax.typesetPromise([output]).catch(err => console.error('MathJax typeset error', err))
+                : null;
+
+            if (window.MathJax && window.MathJax.startup && window.MathJax.startup.promise) {
+                window.MathJax.startup.promise.then(runTypeset);
+            } else {
+                runTypeset();
             }
             console.log('Content rendered successfully.');
         } catch (e) {
